@@ -18,6 +18,11 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Configurar la API de Google Gemini (Nuevo SDK)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    # Esto ayuda a detectar el error en Railway/Render
+    raise ValueError("ERROR: No se encontró la variable GEMINI_API_KEY. Configúrala en el panel de control de Railway.")
+
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Prompt ultra-estricto y redundante
