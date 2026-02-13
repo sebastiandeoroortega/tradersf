@@ -1,0 +1,17 @@
+{
+  "name": "ViralMind Trading Engine",
+  "short_name": "VM Trading",
+  "description": "IA de Análisis Técnico Institucional",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#39FF14",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2534/2534212.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+.env
+uploads/*
+__pycache__/
+*.pyc
+.DS_Store
+static/sw.js.map
+node_modules/

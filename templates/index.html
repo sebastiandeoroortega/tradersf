@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViralMind AI - Trading Analysis</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#39FF14">
+    <style>
+        :root {
+            --neon-green: #39FF14;
+            --dark-bg: #000000;
+            --card-bg: #0a0a0a;
+            --border-glow: #1a1a1a;
+            --text-main: #e0e0e0;
+            --text-dim: #888888;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(57, 255, 20, 0.05);
+            width: 95%;
+            max-width: 700px;
+            border: 1px solid #111;
+            position: relative;
+            z-index: 1;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, transparent, #39FF14, transparent);
+            border-radius: 20px;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-green);
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            margin-bottom: 3rem;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(57, 255, 20, 0.02);
+        }
+
+        .file-upload-wrapper:hover {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.1);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-text {
+            color: var(--neon-green);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        button {
+            background-color: var(--neon-green);
+            color: black;
+            border: none;
+            padding: 1.2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(57, 255, 20, 0.6);
+            background-color: #4dfa32;
+        }
+
+        .risk-alert {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #442222;
+            border-radius: 8px;
+            background-color: #100;
+            color: #ff4444;
+            font-size: 0.85rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .image-preview {
+            width: 100%;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #222;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+        }
+
+        .image-preview img {
+            width: 100%;
+            display: block;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .image-preview img:hover {
+            opacity: 1;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .signal-badge {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 2rem;
+            letter-spacing: 5px;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .signal-go {
+            box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .signal-stop {
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .signal-wait {
+            box-shadow: 0 0 30px rgba(255, 187, 51, 0.2);
+            border: 1px solid #ffbb33;
+            color: #ffbb33;
+        }
+
+        .result-box {
+            background-color: #050505;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #111;
+        }
+
+        .result-item {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #111;
+            padding-bottom: 1rem;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .label {
+            color: var(--neon-green);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            display: block;
+            opacity: 0.7;
+        }
+
+        .content {
+            font-size: 1.2rem;
+            line-height: 1.5;
+            color: #fff;
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Trading Engine</h1>
+        <p class="subtitle">Análisis Técnico Institucional Asistido por IA</p>
+
+        <form method="POST" enctype="multipart/form-data">
+            <div class="file-upload-wrapper">
+                <input type="file" name="chart" accept="image/*" required onchange="updateFileName(this)">
+                <div class="upload-text" id="file-label">SELECCIONAR CAPTURA DE PANTALLA</div>
+            </div>
+            <button type="submit">INICIAR PROCESAMIENTO</button>
+        </form>
+
+        <div class="risk-alert">
+            <strong>Advertencia:</strong> Riesgo máximo de pérdida de capital. Uso educativo únicamente.
+        </div>
+
+        {% if result %}
+        {% if result.error %}
+        <div class="result-box" style="border-color: #ff4444; margin-top: 2rem; color: #ff4444;">
+            ERROR: {{ result.error }}
+        </div>
+        {% else %}
+        <div class="result-card">
+            <!-- Previsualización de la Imagen -->
+            <div class="image-preview">
+                <img src="{{ url_for('uploaded_file', filename=result.filename) }}" alt="Trading Chart">
+            </div>
+
+            <div
+                class="signal-badge {% if result.decision == 'OPERAR' %}signal-go{% elif result.decision == 'NO OPERAR' %}signal-stop{% else %}signal-wait{% endif %}">
+                {{ result.decision }}
+            </div>
+
+            <div class="result-box">
+                <div class="result-item">
+                    <span class="label">Estructura del Mercado</span>
+                    <div class="content">{{ result.tecnico }}</div>
+                </div>
+                <div class="result-item">
+                    <span class="label">Operación Sugerida</span>
+                    <div class="content">{{ result.tipo }}</div>
+                </div>
+                <div class="result-item">
+                    <span class="label">Nivel de Riesgo</span>
+                    <div class="content">{{ result.riesgo }}</div>
+                </div>
+                <div class="result-item">
+                    <span class="label">Motivación Técnica</span>
+                    <div class="content">{{ result.motivo }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <footer>
+            ViralMind AI &bull; Protocolo de Análisis v3.0 &bull; 2026
+        </footer>
+    </div>
+
+    <script>
+        function updateFileName(input) {
+            const label = document.getElementById('file-label');
+            if (input.files && input.files[0]) {
+                label.textContent = "ARCHIVO: " + input.files[0].name.toUpperCase();
+            }
+        }
+
+        // Registro de Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('SW registrado', reg))
+                    .catch(err => console.log('Error SW', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
