@@ -149,4 +149,7 @@ def index():
     return render_template('index.html', result=result)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Usar el puerto que asigna Railway o 5000 por defecto localmente
+    port = int(os.environ.get("PORT", 5000))
+    # En Railway es vital usar host='0.0.0.0'
+    app.run(host='0.0.0.0', port=port, debug=False)
