@@ -60,7 +60,7 @@ class MarketService:
     @staticmethod
     def get_analysis_data(symbol_key):
         """Obtiene datos de Alpha Vantage y calcula indicadores."""
-        if not ALPHA_VANTAGE_KEY:
+        if not ALPHA_VANTAGE_KEY or ALPHA_VANTAGE_KEY == "your_key_here":
             print("ERROR: Falta ALPHA_VANTAGE_KEY en .env")
             return None
 
