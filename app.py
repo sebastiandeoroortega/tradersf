@@ -1,7 +1,7 @@
 import os
 import re
+import requests
 import pandas as pd
-import yfinance as yf
 import pandas_ta as ta
 from google import genai
 from google.genai import types
@@ -9,7 +9,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_from_
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-# Cargar variables de entorno (API Key)
+# Cargar variables de entorno (API Keys)
 load_dotenv()
 
 app = Flask(__name__)
@@ -19,18 +19,16 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 # Asegurarse de que el folder de uploads existe
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Configurar la API de Google Gemini (Nuevo SDK)
+# Configurar APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY")
 
 if not GEMINI_API_KEY:
-    # Esto ayuda a detectar el error en Railway/Render
-    raise ValueError("ERROR: No se encontró la variable GEMINI_API_KEY. Configúrala en el panel de control de Railway.")
+    raise ValueError("ERROR: Falta GEMINI_API_KEY.")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # --- PROMPTS ---
-
-# Prompt para MODO IMAGEN (Análisis visual)
 IMAGE_PROMPT = """
 Eres un analista senior de trading. Analiza la IMAGEN y responde con este formato exacto:
 
@@ -43,7 +41,6 @@ MOTIVO: [Justificación de la decisión y qué invalidaría la operación]
 REGLA: Sé conservador y prioriza la protección del capital.
 """
 
-# Prompt para MODO API (Análisis basado en datos e indicadores)
 DATA_PROMPT = """
 Eres un estratega de trading cuantitativo. Analiza los siguientes DATOS TÉCNICOS y responde con este formato exacto:
 
@@ -56,56 +53,88 @@ MOTIVO: [Confluencia detectada, configuración del setup y niveles clave de inva
 REGLA: Si los indicadores no muestran una confluencia clara, la decisión debe ser ESPERAR.
 """
 
-# --- LÓGICA DE MERCADO ---
-
+# --- LÓGICA DE MERCADO (ALPHA VANTAGE) ---
 class MarketService:
+    BASE_URL = "https://www.alphavantage.co/query"
+
     @staticmethod
-    def get_analysis_data(symbol):
-        """Descarga datos y calcula indicadores para un símbolo."""
+    def get_analysis_data(symbol_key):
+        """Obtiene datos de Alpha Vantage y calcula indicadores."""
+        if not ALPHA_VANTAGE_KEY:
+            print("ERROR: Falta ALPHA_VANTAGE_KEY en .env")
+            return None
+
+        # Configuración Dinámica
+        params = {
+            "apikey": ALPHA_VANTAGE_KEY,
+            "outputsize": "compact"
+        }
+
+        # Detectar si es Crypto o Forex
+        if "BTC" in symbol_key or "ETH" in symbol_key:
+            params["function"] = "CRYPTO_INTRADAY"
+            params["symbol"] = symbol_key.replace("USD", "")
+            params["market"] = "USD"
+            params["interval"] = "5min"
+        else:
+            # Asumimos Forex para todo lo demás (EURUSD, GBPUSD, etc)
+            params["function"] = "FX_INTRADAY"
+            params["from_symbol"] = symbol_key[:3] # Ej: EUR
+            params["to_symbol"] = symbol_key[3:]   # Ej: USD
+            params["interval"] = "5min"
+
         try:
-            # Obtener datos: 1 hora de velas de 5 minutos (o lo que prefieras)
-            df = yf.download(symbol, period="1d", interval="5m", progress=False)
-            if df.empty:
+            response = requests.get(MarketService.BASE_URL, params=params)
+            data = response.json()
+            
+            # Detectar la clave correcta de la serie temporal
+            ts_key = next((k for k in data.keys() if "Time Series" in k or "Intraday" in k), None)
+            
+            if not ts_key:
+                print(f"Error API AV: {data.get('Note', data.get('Error Message', 'Unknown Error'))}")
                 return None
             
-            # Limpiar columnas si tienen multi-index (común en yfinance nuevo)
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+            # Convertir JSON a DataFrame
+            df = pd.DataFrame.from_dict(data[ts_key], orient='index')
+            df = df.astype(float)
+            
+            # Renombrar columnas para pandas_ta
+            df.columns = [c.split('. ')[1].capitalize() for c in df.columns] 
+            df = df.sort_index()
 
             # Calcular Indicadores
             df['EMA_20'] = ta.ema(df['Close'], length=20)
             df['EMA_50'] = ta.ema(df['Close'], length=50)
             df['RSI'] = ta.rsi(df['Close'], length=14)
-            # MACD
             macd = ta.macd(df['Close'])
             df = pd.concat([df, macd], axis=1)
 
             last_row = df.iloc[-1]
-            
+
             data_summary = {
-                'symbol': symbol,
+                'symbol': symbol_key,
                 'price': round(float(last_row['Close']), 5),
-                'rsi': round(float(last_row['RSI']), 2),
-                'ema20': round(float(last_row['EMA_20']), 5),
-                'ema50': round(float(last_row['EMA_50']), 5),
+                'rsi': round(float(last_row['RSI']), 2) if pd.notna(last_row['RSI']) else 0,
+                'ema20': round(float(last_row['EMA_20']), 5) if pd.notna(last_row['EMA_20']) else 0,
+                'ema50': round(float(last_row['EMA_50']), 5) if pd.notna(last_row['EMA_50']) else 0,
                 'trend': 'ALCISTA' if last_row['EMA_20'] > last_row['EMA_50'] else 'BAJISTA',
-                'change_pct': round(((float(last_row['Close']) - float(df.iloc[0]['Open'])) / float(df.iloc[0]['Open'])) * 100, 2)
+                'change_pct': round(((float(last_row['Close']) - float(df.iloc[-2]['Close'])) / float(df.iloc[-2]['Close'])) * 100, 3) 
             }
             return data_summary
+
         except Exception as e:
-            print(f"Error en MarketService para {symbol}: {e}")
+            print(f"Excepción en MarketService: {e}")
             return None
 
 def analyze_data_with_ai(data_summary):
     """Envia el resumen de indicadores a Gemini."""
     input_text = f"""
-    Datos de Mercado para {data_summary['symbol']}:
-    - Precio Actual: {data_summary['price']}
-    - Cambio Diario: {data_summary['change_pct']}%
+    Datos de Mercado EN VIVO ({data_summary['symbol']}):
+    - Precio: {data_summary['price']}
     - RSI (14): {data_summary['rsi']}
-    - EMA 20: {data_summary['ema20']}
-    - EMA 50: {data_summary['ema50']}
-    - Tendencia EMA: {data_summary['trend']}
+    - EMA 20: {data_summary['ema20']} - EMA 50: {data_summary['ema50']}
+    - Tendencia Técnica: {data_summary['trend']}
+    - Momentum: {data_summary['change_pct']}%
     """
     
     try:
@@ -125,78 +154,40 @@ def analyze_chart(file_path, prompt):
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                prompt
-            ]
+            contents=[types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"), prompt]
         )
-        print("--- RESPUESTA IA ---")
-        print(response.text)
-        print("--------------------")
         return response.text
     except Exception as e:
         return f"ERROR_IA: {str(e)}"
 
 def parse_analysis(text):
-    """Extrae la información de forma ultra-flexible."""
-    res = {
-        'tecnico': 'No detectado',
-        'decision': 'ESPERAR',
-        'tipo': 'N/A',
-        'riesgo': 'ALTO',
-        'motivo': 'No detectado'
-    }
+    """Parser robusto para la respuesta de la IA."""
+    res = {'tecnico': '...', 'decision': 'ESPERAR', 'tipo': 'N/A', 'riesgo': 'ALTO', 'motivo': '...'}
+    clean = text.replace('**', '').strip()
     
-    clean = text.replace('**', '').replace('###', '').strip()
-    
-    # Mapeo de búsqueda por palabras clave (sin tildes y flexible)
     mapeo = {
-        'tecnico': ['ANALISIS', 'ESTRUCTURA', 'DESCRIP'],
-        'decision': ['DECISION', 'DECISIÓN', 'RECOMEND'],
-        'tipo': ['TIPO', 'OPERACIO', 'ACCIO', 'POSICIO'],
-        'riesgo': ['RIESGO', 'RISK'],
-        'motivo': ['MOTIVO', 'MOTIVA', 'JUSTIFICA', 'RAZON', 'POR QUE']
+        'tecnico': ['ANALISIS', 'ESTRUCTURA'],
+        'decision': ['DECISION', 'DECISIÓN'],
+        'tipo': ['TIPO', 'OPERACION'],
+        'riesgo': ['RIESGO'],
+        'motivo': ['MOTIVO', 'JUSTIFICACION']
     }
     
-    lineas = clean.split('\n')
-    seccion_actual = None
-    
-    for l in lineas:
-        l_upper = l.upper().strip()
-        if not l_upper: continue
+    for line in clean.split('\n'):
+        line = line.strip()
+        if not line: continue
+        upper = line.upper()
         
-        encontrado = False
         for key, keywords in mapeo.items():
             for kw in keywords:
-                if l_upper.startswith(kw):
-                    seccion_actual = key
-                    # Extraer lo que hay tras los dos puntos
-                    partes = l.split(':', 1)
-                    if len(partes) > 1:
-                        res[key] = partes[1].strip()
-                    else:
-                        res[key] = ""
-                    encontrado = True
-                    break
-            if encontrado: break
-            
-        if not encontrado and seccion_actual:
-            if res[seccion_actual] == 'No detectado' or res[seccion_actual] == "":
-                res[seccion_actual] = l.strip()
-            else:
-                res[seccion_actual] += " " + l.strip()
-
-    # Normalización de la decisión
-    d = res['decision'].upper()
-    if 'OPERAR' in d and 'NO' not in d: res['decision'] = 'OPERAR'
-    elif 'ESPERAR' in d: res['decision'] = 'ESPERAR'
-    else: res['decision'] = 'NO OPERAR'
+                if upper.startswith(kw):
+                    parts = line.split(':', 1)
+                    if len(parts) > 1: res[key] = parts[1].strip()
     
     return res
 
 @app.route('/manifest.json')
-def manifest():
-    return send_from_directory('static', 'manifest.json')
+def manifest(): return send_from_directory('static', 'manifest.json')
 
 @app.route('/sw.js')
 def service_worker():
@@ -205,20 +196,24 @@ def service_worker():
     return response
 
 @app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+def uploaded_file(filename): return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
-    mode = 'image'  # Por defecto
+    mode = 'image'
     
-    # Pares a escanear en modo API
+    # Lista ampliada de Pares Forex y Crypto
     symbols = {
-        'EUR/USD': 'EURUSD=X',
-        'GBP/USD': 'GBPUSD=X',
-        'ORO (GOLD)': 'GC=F',
-        'BTC/USD': 'BTC-USD'
+        'EUR/USD - Euro Dólar': 'EURUSD',
+        'GBP/USD - Libra Dólar': 'GBPUSD',
+        'USD/JPY - Dólar Yen': 'USDJPY',
+        'USD/CHF - Dólar Franco': 'USDCHF',
+        'AUD/USD - Australiano': 'AUDUSD',
+        'USD/CAD - Canadiense': 'USDCAD',
+        'XAU/USD - Oro Spot': 'XAUUSD',
+        'BTC/USD - Bitcoin': 'BTCUSD',
+        'ETH/USD - Ethereum': 'ETHUSD'
     }
 
     if request.method == 'POST':
@@ -230,33 +225,20 @@ def index():
                 filename = secure_filename(file.filename)
                 path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(path)
-                
-                raw = analyze_chart(path, IMAGE_PROMPT) # Pasar el prompt de imagen
-                if "ERROR_IA:" in raw:
-                    result = {'error': raw}
-                else:
-                    result = parse_analysis(raw)
-                    result['filename'] = filename
+                result = parse_analysis(analyze_chart(path, IMAGE_PROMPT))
+                result['filename'] = filename
         
         elif mode == 'api':
-            # Modo Escáner de Mercado
-            target_symbol = request.form.get('symbol', 'EURUSD=X')
-            data = MarketService.get_analysis_data(target_symbol)
-            
+            target = request.form.get('symbol', 'EURUSD')
+            data = MarketService.get_analysis_data(target)
             if data:
-                raw = analyze_data_with_ai(data)
-                if "ERROR_IA:" in raw:
-                    result = {'error': raw}
-                else:
-                    result = parse_analysis(raw)
-                    result['market_data'] = data # Para mostrar los valores en UI
+                result = parse_analysis(analyze_data_with_ai(data))
+                result['market_data'] = data
             else:
-                result = {'error': "No se pudieron obtener datos del mercado."}
+                result = {'error': "Error de Conexión Alpha Vantage (Verifica tu API KEY o límites de uso)."}
                 
     return render_template('index.html', result=result, mode=mode, symbols=symbols)
 
 if __name__ == '__main__':
-    # Usar el puerto que asigna Railway o 5000 por defecto localmente
     port = int(os.environ.get("PORT", 5000))
-    # En Railway es vital usar host='0.0.0.0'
     app.run(host='0.0.0.0', port=port, debug=False)

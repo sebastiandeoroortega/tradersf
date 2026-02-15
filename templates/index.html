@@ -325,6 +325,44 @@
             color: #ff4444;
         }
 
+        /* Neon Select Dropdown */
+        .select-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .neon-select {
+            background-color: #050505;
+            color: var(--neon-green);
+            border: 1px solid #333;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            appearance: none;
+            /* Remove default arrow */
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2339FF14%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 0.65em auto;
+        }
+
+        .neon-select:focus {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
+        }
+
+        .neon-select option {
+            background-color: #000;
+            color: #fff;
+            padding: 10px;
+        }
+
         footer {
             margin-top: 3rem;
             text-align: center;
@@ -370,16 +408,18 @@
 
         <form id="form-api" method="POST" class="{% if mode == 'api' %}show{% else %}hide{% endif %}">
             <input type="hidden" name="mode" value="api">
-            <div class="pair-grid">
-                {% for label, value in symbols.items() %}
-                <label class="pair-card">
-                    <input type="radio" name="symbol" value="{{ value }}" {% if request.form.get('symbol')==value or
-                        (not request.form.get('symbol') and loop.first) %}checked{% endif %}>
-                    <span class="pair-name">{{ label }}</span>
-                </label>
-                {% endfor %}
+
+            <div class="select-wrapper">
+                <label for="symbol-select" class="label">SELECCIONAR ACTIVO (FOREX/CRYPTO)</label>
+                <select name="symbol" id="symbol-select" class="neon-select">
+                    {% for label, value in symbols.items() %}
+                    <option value="{{ value }}" {% if request.form.get('symbol')==value %}selected{% endif %}>{{ label
+                        }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <button type="submit">CORRER ESCÁNER IA</button>
+
+            <button type="submit">ANALIZAR CON ALPHA VANTAGE</button>
         </form>
 
         <div class="risk-alert">

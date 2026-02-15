@@ -1,6 +1,6 @@
 flask
 google-genai
 python-dotenv
-yfinance
+requests
 pandas
 pandas_ta
