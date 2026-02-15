@@ -148,6 +148,90 @@
             letter-spacing: 1px;
         }
 
+        .image-preview {
+            width: 100%;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #222;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+        }
+
+        .image-preview img {
+            width: 100%;
+            display: block;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+
+        .image-preview img:hover {
+            opacity: 1;
+        }
+
+        .signal-badge {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 2rem;
+            letter-spacing: 5px;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .signal-go {
+            box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .signal-stop {
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        .signal-wait {
+            box-shadow: 0 0 30px rgba(255, 187, 51, 0.2);
+            border: 1px solid #ffbb33;
+            color: #ffbb33;
+        }
+
+        .result-box {
+            background-color: #050505;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #111;
+        }
+
+        .result-item {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #111;
+            padding-bottom: 1rem;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .label {
+            color: var(--neon-green);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            display: block;
+            opacity: 0.7;
+        }
+
+        .content {
+            font-size: 1.2rem;
+            line-height: 1.5;
+            color: #fff;
+        }
+
         /* V2.0 Dual Mode Styles */
         .mode-selector {
             display: flex;
@@ -263,6 +347,13 @@
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 2px;
+            padding-bottom: 2rem;
+        }
+
+        /* Responsive Fixes */
+        body {
+            align-items: flex-start;
+            padding: 2rem 0;
         }
     </style>
 </head>
@@ -316,7 +407,7 @@
             ERROR: {{ result.error }}
         </div>
         {% else %}
-        <div class="result-card">
+        <div class="result-card" style="margin-top: 2rem;">
 
             {% if mode == 'image' and result.filename %}
             <!-- Previsualización de la Imagen -->
