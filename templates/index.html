@@ -27,9 +27,10 @@
             margin: 0;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             overflow-x: hidden;
+            padding: 2rem 0;
         }
 
         .container {
@@ -164,10 +165,6 @@
             transition: opacity 0.3s;
         }
 
-        .image-preview img:hover {
-            opacity: 1;
-        }
-
         .signal-badge {
             text-align: center;
             padding: 1.5rem;
@@ -211,11 +208,6 @@
             padding-bottom: 1rem;
         }
 
-        .result-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-
         .label {
             color: var(--neon-green);
             font-family: 'Orbitron', sans-serif;
@@ -232,7 +224,6 @@
             color: #fff;
         }
 
-        /* V2.0 Dual Mode Styles */
         .mode-selector {
             display: flex;
             gap: 1rem;
@@ -250,7 +241,6 @@
             font-family: 'Orbitron', sans-serif;
             font-size: 0.8rem;
             transition: all 0.3s;
-            letter-spacing: 1px;
         }
 
         .mode-btn.active {
@@ -275,10 +265,6 @@
             cursor: pointer;
             transition: all 0.3s;
             position: relative;
-        }
-
-        .pair-card:hover {
-            border-color: #333;
         }
 
         .pair-card input {
@@ -323,7 +309,6 @@
             font-size: 0.7rem;
             text-transform: uppercase;
             color: var(--text-dim);
-            letter-spacing: 1px;
         }
 
         .dash-value {
@@ -349,12 +334,6 @@
             letter-spacing: 2px;
             padding-bottom: 2rem;
         }
-
-        /* Responsive Fixes */
-        body {
-            align-items: flex-start;
-            padding: 2rem 0;
-        }
     </style>
 </head>
 
@@ -363,7 +342,6 @@
         <h1>Trading Engine v2.0</h1>
         <p class="subtitle">Análisis Técnico Institucional & Market Scanner</p>
 
-        <!-- Selector de Modo -->
         <div class="mode-selector">
             <button class="mode-btn {% if mode == 'image' %}active{% endif %}" onclick="switchMode('image')">MODO
                 IMAGEN</button>
@@ -371,7 +349,6 @@
                 SCANNER</button>
         </div>
 
-        <!-- Formulario Modo Imagen -->
         <form id="form-image" method="POST" enctype="multipart/form-data"
             style="display: {% if mode == 'image' %}flex{% else %}none{% endif %};">
             <input type="hidden" name="mode" value="image">
@@ -382,7 +359,6 @@
             <button type="submit">ANALIZAR GRÁFICO</button>
         </form>
 
-        <!-- Formulario Modo API -->
         <form id="form-api" method="POST" style="display: {% if mode == 'api' %}flex{% else %}none{% endif %};">
             <input type="hidden" name="mode" value="api">
             <div class="pair-grid">
@@ -403,61 +379,43 @@
 
         {% if result %}
         {% if result.error %}
-        <div class="result-box" style="border-color: #ff4444; margin-top: 2rem; color: #ff4444;">
-            ERROR: {{ result.error }}
-        </div>
+        <div class="result-box" style="border-color: #ff4444; margin-top: 2rem; color: #ff4444;">ERROR: {{ result.error
+            }}</div>
         {% else %}
-        <div class="result-card" style="margin-top: 2rem;">
-
+        <div class="result-card" style="margin-top: 2rem; animation: fadeIn 0.5s ease-out;">
             {% if mode == 'image' and result.filename %}
-            <!-- Previsualización de la Imagen -->
             <div class="image-preview">
                 <img src="{{ url_for('uploaded_file', filename=result.filename) }}" alt="Trading Chart">
             </div>
             {% elif mode == 'api' and result.market_data %}
-            <!-- Dashboard de Indicadores Real-time -->
             <div class="market-dashboard">
-                <div class="dash-item">
-                    <span class="dash-label">Precio</span>
-                    <span class="dash-value">{{ result.market_data.price }}</span>
-                </div>
-                <div class="dash-item">
-                    <span class="dash-label">Tendencia</span>
-                    <span
+                <div class="dash-item"><span class="dash-label">Precio</span><span class="dash-value">{{
+                        result.market_data.price }}</span></div>
+                <div class="dash-item"><span class="dash-label">Tendencia</span><span
                         class="dash-value {% if result.market_data.trend == 'ALCISTA' %}trend-up{% else %}trend-down{% endif %}">{{
-                        result.market_data.trend }}</span>
-                </div>
-                <div class="dash-item">
-                    <span class="dash-label">RSI (14)</span>
-                    <span class="dash-value">{{ result.market_data.rsi }}</span>
-                </div>
-                <div class="dash-item">
-                    <span class="dash-label">Variación</span>
-                    <span class="dash-value">{{ result.market_data.change_pct }}%</span>
-                </div>
+                        result.market_data.trend }}</span></div>
+                <div class="dash-item"><span class="dash-label">RSI (14)</span><span class="dash-value">{{
+                        result.market_data.rsi }}</span></div>
+                <div class="dash-item"><span class="dash-label">Variación</span><span class="dash-value">{{
+                        result.market_data.change_pct }}%</span></div>
             </div>
             {% endif %}
 
             <div
                 class="signal-badge {% if result.decision == 'OPERAR' %}signal-go{% elif result.decision == 'NO OPERAR' %}signal-stop{% else %}signal-wait{% endif %}">
-                {{ result.decision }}
-            </div>
+                {{ result.decision }}</div>
 
             <div class="result-box">
-                <div class="result-item">
-                    <span class="label">Análisis de Mercado</span>
+                <div class="result-item"><span class="label">Análisis de Mercado</span>
                     <div class="content">{{ result.tecnico }}</div>
                 </div>
-                <div class="result-item">
-                    <span class="label">Operación Sugerida</span>
+                <div class="result-item"><span class="label">Operación Sugerida</span>
                     <div class="content">{{ result.tipo }}</div>
                 </div>
-                <div class="result-item">
-                    <span class="label">Nivel de Riesgo</span>
+                <div class="result-item"><span class="label">Nivel de Riesgo</span>
                     <div class="content">{{ result.riesgo }}</div>
                 </div>
-                <div class="result-item">
-                    <span class="label">Justificación Técnica</span>
+                <div class="result-item"><span class="label">Justificación Técnica</span>
                     <div class="content">{{ result.motivo }}</div>
                 </div>
             </div>
@@ -465,43 +423,31 @@
         {% endif %}
         {% endif %}
 
-        <footer>
-            ViralMind AI &bull; Protocolo de Análisis v3.0 &bull; 2026
-        </footer>
+        <footer>ViralMind AI &bull; Protocolo de Análisis v3.0 &bull; 2026</footer>
     </div>
 
     <script>
         function updateFileName(input) {
             const label = document.getElementById('file-label');
-            if (input.files && input.files[0]) {
-                label.textContent = "ARCHIVO: " + input.files[0].name.toUpperCase();
-            }
+            if (input.files && input.files[0]) { label.textContent = "ARCHIVO: " + input.files[0].name.toUpperCase(); }
         }
 
         function switchMode(mode) {
             const formImage = document.getElementById('form-image');
             const formApi = document.getElementById('form-api');
             const btns = document.querySelectorAll('.mode-btn');
-
             if (mode === 'image') {
-                formImage.style.display = 'flex';
-                formApi.style.display = 'none';
-                btns[0].classList.add('active');
-                btns[1].classList.remove('active');
+                formImage.style.display = 'flex'; formApi.style.display = 'none';
+                btns[0].classList.add('active'); btns[1].classList.remove('active');
             } else {
-                formImage.style.display = 'none';
-                formApi.style.display = 'flex';
-                btns[0].classList.remove('active');
-                btns[1].classList.add('active');
+                formImage.style.display = 'none'; formApi.style.display = 'flex';
+                btns[0].classList.remove('active'); btns[1].classList.add('active');
             }
         }
 
-        // Registro de Service Worker para PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW registrado', reg))
-                    .catch(err => console.log('Error SW', err));
+                navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registrado', reg)).catch(err => console.log('Error SW', err));
             });
         }
     </script>
