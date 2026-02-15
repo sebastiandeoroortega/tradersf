@@ -334,6 +334,15 @@
             letter-spacing: 2px;
             padding-bottom: 2rem;
         }
+
+        /* Utility Classes for JS Toggling */
+        .show {
+            display: flex !important;
+        }
+
+        .hide {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -350,7 +359,7 @@
         </div>
 
         <form id="form-image" method="POST" enctype="multipart/form-data"
-            style="display: {% if mode == 'image' %}flex{% else %}none{% endif %};">
+            class="{% if mode == 'image' %}show{% else %}hide{% endif %}">
             <input type="hidden" name="mode" value="image">
             <div class="file-upload-wrapper">
                 <input type="file" name="chart" accept="image/*" required onchange="updateFileName(this)">
@@ -359,7 +368,7 @@
             <button type="submit">ANALIZAR GRÁFICO</button>
         </form>
 
-        <form id="form-api" method="POST" style="display: {% if mode == 'api' %}flex{% else %}none{% endif %};">
+        <form id="form-api" method="POST" class="{% if mode == 'api' %}show{% else %}hide{% endif %}">
             <input type="hidden" name="mode" value="api">
             <div class="pair-grid">
                 {% for label, value in symbols.items() %}
@@ -436,11 +445,14 @@
             const formImage = document.getElementById('form-image');
             const formApi = document.getElementById('form-api');
             const btns = document.querySelectorAll('.mode-btn');
+
             if (mode === 'image') {
-                formImage.style.display = 'flex'; formApi.style.display = 'none';
+                formImage.classList.remove('hide'); formImage.classList.add('show');
+                formApi.classList.remove('show'); formApi.classList.add('hide');
                 btns[0].classList.add('active'); btns[1].classList.remove('active');
             } else {
-                formImage.style.display = 'none'; formApi.style.display = 'flex';
+                formImage.classList.remove('show'); formImage.classList.add('hide');
+                formApi.classList.remove('hide'); formApi.classList.add('show');
                 btns[0].classList.remove('active'); btns[1].classList.add('active');
             }
         }
