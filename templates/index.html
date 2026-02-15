@@ -148,100 +148,112 @@
             letter-spacing: 1px;
         }
 
-        .image-preview {
-            width: 100%;
+        /* V2.0 Dual Mode Styles */
+        .mode-selector {
+            display: flex;
+            gap: 1rem;
             margin-bottom: 2rem;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #222;
-            box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+            justify-content: center;
         }
 
-        .image-preview img {
-            width: 100%;
-            display: block;
-            opacity: 0.9;
-            transition: opacity 0.3s;
-        }
-
-        .image-preview img:hover {
-            opacity: 1;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .signal-badge {
-            text-align: center;
-            padding: 1.5rem;
-            border-radius: 10px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 2rem;
-            letter-spacing: 5px;
-            margin-bottom: 1.5rem;
-            text-transform: uppercase;
-        }
-
-        .signal-go {
-            box-shadow: 0 0 30px rgba(57, 255, 20, 0.2);
-            border: 1px solid var(--neon-green);
-            color: var(--neon-green);
-        }
-
-        .signal-stop {
-            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
-            border: 1px solid #ff4444;
-            color: #ff4444;
-        }
-
-        .signal-wait {
-            box-shadow: 0 0 30px rgba(255, 187, 51, 0.2);
-            border: 1px solid #ffbb33;
-            color: #ffbb33;
-        }
-
-        .result-box {
-            background-color: #050505;
-            padding: 2rem;
-            border-radius: 12px;
-            border: 1px solid #111;
-        }
-
-        .result-item {
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid #111;
-            padding-bottom: 1rem;
-        }
-
-        .result-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-
-        .label {
-            color: var(--neon-green);
+        .mode-btn {
+            background: #111;
+            border: 1px solid #333;
+            color: var(--text-dim);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
             font-family: 'Orbitron', sans-serif;
             font-size: 0.8rem;
-            text-transform: uppercase;
-            margin-bottom: 0.5rem;
-            display: block;
-            opacity: 0.7;
+            transition: all 0.3s;
+            letter-spacing: 1px;
         }
 
-        .content {
+        .mode-btn.active {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+        }
+
+        .pair-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .pair-card {
+            background: #050505;
+            border: 1px solid #1a1a1a;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .pair-card:hover {
+            border-color: #333;
+        }
+
+        .pair-card input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .pair-card input:checked+.pair-name {
+            color: var(--neon-green);
+            text-shadow: 0 0 5px var(--neon-green);
+        }
+
+        .pair-card:has(input:checked) {
+            border-color: var(--neon-green);
+            background: rgba(57, 255, 20, 0.05);
+        }
+
+        .pair-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .market-dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .dash-item {
+            background: #080808;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #111;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .dash-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+        }
+
+        .dash-value {
+            font-family: 'Orbitron', sans-serif;
             font-size: 1.2rem;
-            line-height: 1.5;
-            color: #fff;
+            color: var(--neon-green);
+        }
+
+        .trend-up {
+            color: var(--neon-green);
+        }
+
+        .trend-down {
+            color: #ff4444;
         }
 
         footer {
@@ -257,15 +269,41 @@
 
 <body>
     <div class="container">
-        <h1>Trading Engine</h1>
-        <p class="subtitle">Análisis Técnico Institucional Asistido por IA</p>
+        <h1>Trading Engine v2.0</h1>
+        <p class="subtitle">Análisis Técnico Institucional & Market Scanner</p>
 
-        <form method="POST" enctype="multipart/form-data">
+        <!-- Selector de Modo -->
+        <div class="mode-selector">
+            <button class="mode-btn {% if mode == 'image' %}active{% endif %}" onclick="switchMode('image')">MODO
+                IMAGEN</button>
+            <button class="mode-btn {% if mode == 'api' %}active{% endif %}" onclick="switchMode('api')">MARKET
+                SCANNER</button>
+        </div>
+
+        <!-- Formulario Modo Imagen -->
+        <form id="form-image" method="POST" enctype="multipart/form-data"
+            style="display: {% if mode == 'image' %}flex{% else %}none{% endif %};">
+            <input type="hidden" name="mode" value="image">
             <div class="file-upload-wrapper">
                 <input type="file" name="chart" accept="image/*" required onchange="updateFileName(this)">
                 <div class="upload-text" id="file-label">SELECCIONAR CAPTURA DE PANTALLA</div>
             </div>
-            <button type="submit">INICIAR PROCESAMIENTO</button>
+            <button type="submit">ANALIZAR GRÁFICO</button>
+        </form>
+
+        <!-- Formulario Modo API -->
+        <form id="form-api" method="POST" style="display: {% if mode == 'api' %}flex{% else %}none{% endif %};">
+            <input type="hidden" name="mode" value="api">
+            <div class="pair-grid">
+                {% for label, value in symbols.items() %}
+                <label class="pair-card">
+                    <input type="radio" name="symbol" value="{{ value }}" {% if request.form.get('symbol')==value or
+                        (not request.form.get('symbol') and loop.first) %}checked{% endif %}>
+                    <span class="pair-name">{{ label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            <button type="submit">CORRER ESCÁNER IA</button>
         </form>
 
         <div class="risk-alert">
@@ -279,10 +317,35 @@
         </div>
         {% else %}
         <div class="result-card">
+
+            {% if mode == 'image' and result.filename %}
             <!-- Previsualización de la Imagen -->
             <div class="image-preview">
                 <img src="{{ url_for('uploaded_file', filename=result.filename) }}" alt="Trading Chart">
             </div>
+            {% elif mode == 'api' and result.market_data %}
+            <!-- Dashboard de Indicadores Real-time -->
+            <div class="market-dashboard">
+                <div class="dash-item">
+                    <span class="dash-label">Precio</span>
+                    <span class="dash-value">{{ result.market_data.price }}</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">Tendencia</span>
+                    <span
+                        class="dash-value {% if result.market_data.trend == 'ALCISTA' %}trend-up{% else %}trend-down{% endif %}">{{
+                        result.market_data.trend }}</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">RSI (14)</span>
+                    <span class="dash-value">{{ result.market_data.rsi }}</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">Variación</span>
+                    <span class="dash-value">{{ result.market_data.change_pct }}%</span>
+                </div>
+            </div>
+            {% endif %}
 
             <div
                 class="signal-badge {% if result.decision == 'OPERAR' %}signal-go{% elif result.decision == 'NO OPERAR' %}signal-stop{% else %}signal-wait{% endif %}">
@@ -291,7 +354,7 @@
 
             <div class="result-box">
                 <div class="result-item">
-                    <span class="label">Estructura del Mercado</span>
+                    <span class="label">Análisis de Mercado</span>
                     <div class="content">{{ result.tecnico }}</div>
                 </div>
                 <div class="result-item">
@@ -303,7 +366,7 @@
                     <div class="content">{{ result.riesgo }}</div>
                 </div>
                 <div class="result-item">
-                    <span class="label">Motivación Técnica</span>
+                    <span class="label">Justificación Técnica</span>
                     <div class="content">{{ result.motivo }}</div>
                 </div>
             </div>
@@ -321,6 +384,24 @@
             const label = document.getElementById('file-label');
             if (input.files && input.files[0]) {
                 label.textContent = "ARCHIVO: " + input.files[0].name.toUpperCase();
+            }
+        }
+
+        function switchMode(mode) {
+            const formImage = document.getElementById('form-image');
+            const formApi = document.getElementById('form-api');
+            const btns = document.querySelectorAll('.mode-btn');
+
+            if (mode === 'image') {
+                formImage.style.display = 'flex';
+                formApi.style.display = 'none';
+                btns[0].classList.add('active');
+                btns[1].classList.remove('active');
+            } else {
+                formImage.style.display = 'none';
+                formApi.style.display = 'flex';
+                btns[0].classList.remove('active');
+                btns[1].classList.add('active');
             }
         }
 

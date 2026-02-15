@@ -1,5 +1,8 @@
 import os
 import re
+import pandas as pd
+import yfinance as yf
+import pandas_ta as ta
 from google import genai
 from google.genai import types
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, make_response
@@ -25,20 +28,96 @@ if not GEMINI_API_KEY:
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Prompt ultra-estricto y redundante
-SYSTEM_PROMPT = """
-Eres un analista de trading. Analiza la imagen y responde con este formato exacto:
+# --- PROMPTS ---
 
-ANALISIS: [Detalles técnicos aquí]
+# Prompt para MODO IMAGEN (Análisis visual)
+IMAGE_PROMPT = """
+Eres un analista senior de trading. Analiza la IMAGEN y responde con este formato exacto:
+
+ANALISIS: [Detalles técnicos del gráfico]
 DECISION: [OPERAR / ESPERAR / NO OPERAR]
 TIPO: [COMPRA / VENTA / N/A]
 RIESGO: [BAJO / MEDIO / ALTO]
-MOTIVO: [Explicación de por qué tomas esa decisión]
+MOTIVO: [Justificación de la decisión y qué invalidaría la operación]
 
-REGLA: Usa solo estas palabras clave y sé muy claro.
+REGLA: Sé conservador y prioriza la protección del capital.
 """
 
-def analyze_chart(file_path):
+# Prompt para MODO API (Análisis basado en datos e indicadores)
+DATA_PROMPT = """
+Eres un estratega de trading cuantitativo. Analiza los siguientes DATOS TÉCNICOS y responde con este formato exacto:
+
+ANALISIS: [Interpretación de la acción del precio y los indicadores]
+DECISION: [OPERAR / ESPERAR / NO OPERAR]
+TIPO: [COMPRA / VENTA / N/A]
+RIESGO: [BAJO / MEDIO / ALTO]
+MOTIVO: [Confluencia detectada, configuración del setup y niveles clave de invalidación]
+
+REGLA: Si los indicadores no muestran una confluencia clara, la decisión debe ser ESPERAR.
+"""
+
+# --- LÓGICA DE MERCADO ---
+
+class MarketService:
+    @staticmethod
+    def get_analysis_data(symbol):
+        """Descarga datos y calcula indicadores para un símbolo."""
+        try:
+            # Obtener datos: 1 hora de velas de 5 minutos (o lo que prefieras)
+            df = yf.download(symbol, period="1d", interval="5m", progress=False)
+            if df.empty:
+                return None
+            
+            # Limpiar columnas si tienen multi-index (común en yfinance nuevo)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
+            # Calcular Indicadores
+            df['EMA_20'] = ta.ema(df['Close'], length=20)
+            df['EMA_50'] = ta.ema(df['Close'], length=50)
+            df['RSI'] = ta.rsi(df['Close'], length=14)
+            # MACD
+            macd = ta.macd(df['Close'])
+            df = pd.concat([df, macd], axis=1)
+
+            last_row = df.iloc[-1]
+            
+            data_summary = {
+                'symbol': symbol,
+                'price': round(float(last_row['Close']), 5),
+                'rsi': round(float(last_row['RSI']), 2),
+                'ema20': round(float(last_row['EMA_20']), 5),
+                'ema50': round(float(last_row['EMA_50']), 5),
+                'trend': 'ALCISTA' if last_row['EMA_20'] > last_row['EMA_50'] else 'BAJISTA',
+                'change_pct': round(((float(last_row['Close']) - float(df.iloc[0]['Open'])) / float(df.iloc[0]['Open'])) * 100, 2)
+            }
+            return data_summary
+        except Exception as e:
+            print(f"Error en MarketService para {symbol}: {e}")
+            return None
+
+def analyze_data_with_ai(data_summary):
+    """Envia el resumen de indicadores a Gemini."""
+    input_text = f"""
+    Datos de Mercado para {data_summary['symbol']}:
+    - Precio Actual: {data_summary['price']}
+    - Cambio Diario: {data_summary['change_pct']}%
+    - RSI (14): {data_summary['rsi']}
+    - EMA 20: {data_summary['ema20']}
+    - EMA 50: {data_summary['ema50']}
+    - Tendencia EMA: {data_summary['trend']}
+    """
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[data_summary['symbol'], input_text, DATA_PROMPT]
+        )
+        return response.text
+    except Exception as e:
+        return f"ERROR_IA: {str(e)}"
+
+def analyze_chart(file_path, prompt):
     """Envía la imagen a Gemini."""
     with open(file_path, "rb") as f:
         image_bytes = f.read()
@@ -48,7 +127,7 @@ def analyze_chart(file_path):
             model="gemini-2.5-flash",
             contents=[
                 types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                SYSTEM_PROMPT
+                prompt
             ]
         )
         print("--- RESPUESTA IA ---")
@@ -132,21 +211,49 @@ def uploaded_file(filename):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
+    mode = 'image'  # Por defecto
+    
+    # Pares a escanear en modo API
+    symbols = {
+        'EUR/USD': 'EURUSD=X',
+        'GBP/USD': 'GBPUSD=X',
+        'ORO (GOLD)': 'GC=F',
+        'BTC/USD': 'BTC-USD'
+    }
+
     if request.method == 'POST':
-        file = request.files.get('chart')
-        if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(path)
-            
-            raw = analyze_chart(path)
-            if "ERROR_IA:" in raw:
-                result = {'error': raw}
-            else:
-                result = parse_analysis(raw)
-                result['filename'] = filename
+        mode = request.form.get('mode', 'image')
+        
+        if mode == 'image':
+            file = request.files.get('chart')
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(path)
                 
-    return render_template('index.html', result=result)
+                raw = analyze_chart(path, IMAGE_PROMPT) # Pasar el prompt de imagen
+                if "ERROR_IA:" in raw:
+                    result = {'error': raw}
+                else:
+                    result = parse_analysis(raw)
+                    result['filename'] = filename
+        
+        elif mode == 'api':
+            # Modo Escáner de Mercado
+            target_symbol = request.form.get('symbol', 'EURUSD=X')
+            data = MarketService.get_analysis_data(target_symbol)
+            
+            if data:
+                raw = analyze_data_with_ai(data)
+                if "ERROR_IA:" in raw:
+                    result = {'error': raw}
+                else:
+                    result = parse_analysis(raw)
+                    result['market_data'] = data # Para mostrar los valores en UI
+            else:
+                result = {'error': "No se pudieron obtener datos del mercado."}
+                
+    return render_template('index.html', result=result, mode=mode, symbols=symbols)
 
 if __name__ == '__main__':
     # Usar el puerto que asigna Railway o 5000 por defecto localmente
